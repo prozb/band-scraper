@@ -96,10 +96,10 @@ const getAlbumFromRow = row => {
   let albumLinks = getAlbumLinks(rowElems[0]);
 
   try{
-    album.href      = albumLinks.href;
+    album.url       = albumLinks.url;
     album.id        = albumLinks.id;
     album.released  = albumInfo.released;
-    album.recorded = albumInfo.recorded;
+    album.recorded  = albumInfo.recorded;
     album.label     = albumInfo.label;
   }catch(e) {
     console.error(e);
@@ -118,14 +118,16 @@ const getAlbumLinks = header => {
     let i = getChildren(child);
     let a = i.find(tag => tag.tagName === 'a');
     // checking tag i contains element a
-    if(child && a && a.attribs && a.attribs)
+    if(child && a && a.attribs && a.attribs){
       // extracting href and title
       if(a.attribs.href){
         info.url = 'https://en.wikipedia.org/' + a.attribs.href;
       }
       if(a.attribs.title){
         info.id  = a.attribs.title;
+        return info;
       }
+    }
   });
 
   return info;
