@@ -1,7 +1,6 @@
 const puppeteer = require('puppeteer');
 const cheerio   = require('cheerio');
 const fs        = require('fs');
-
 /**
  * Parsing wikipedia pages to create datasets of different bands
  * @author Pavlo Rozbytskyi
@@ -188,17 +187,30 @@ const getAlbumInfo = element => {
 const getChildren = element => element.children.filter(e => e.type != 'text');
 
 (async () => {
+  console.time('Scraping time'); 
+  if(process.argv.length < 3){
+    console.error('Please specify wikipedia link to discography.')
+    process.exit(1);
+  }
+  // url to parse
+  const url = process.argv[2];
+  // starting headless browser
   const browser = await puppeteer.launch();
-  const page = await browser.newPage();
+  const page    = await browser.newPage();
+  await page.goto(url);
   // await page.goto('https://en.wikipedia.org/wiki/Miles_Davis_discography');
-  await page.goto('https://en.wikipedia.org/wiki/Iron_Maiden_discography');
+  // await page.goto('https://en.wikipedia.org/wiki/Iron_Maiden_discography');
   // await page.goto('https://en.wikipedia.org/wiki/Justin_Bieber_discography');
-
-  // await page.screenshot({path: 'example.png'});
   let bodyHTML = await page.evaluate(() => document.body.innerHTML);
   let content  = await startScraping(bodyHTML); 
   let string   = JSON.stringify(content);
 
-  await fs.writeFile('albums.json', string, 'utf8', () => console.log('parsing completed'));  
+  await fs.writeFile('albums.json', string, 'utf8', () => {
+   console.info("Storing %d albums", content.length);
+  });  
   await browser.close();
+
+  console.timeEnd('Scraping time');
 })();
+
+
