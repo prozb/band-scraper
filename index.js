@@ -11,7 +11,7 @@ const fs        = require('fs');
  * starting parsing process
  * @param {string} pageHTML - html code of the page 
  */
-const startScraping = async (pageHTML) => {
+const scrapeAlbums = async (pageHTML) => {
   let $ = cheerio.load(pageHTML);
   // getting parsing output 
   let elements = $('.mw-parser-output').children();
@@ -178,6 +178,63 @@ const getAlbumInfo = element => {
   });
   return albumInfo;
 }
+
+/**
+ * Scraping general information about album
+ * @param {string} html 
+ */
+const scrapeInfo = html => {
+  let info = {};
+  let $    = cheerio.load(html);
+  // getting tbody with information about the discography
+  let tbody = $('table.infobox tbody');
+  // getting image of the discography
+  let img   = tbody.find('tr td a img');
+  // if the image is found, get info about it 
+  if(img && img.length > 0 && img[0] && img[0].attribs){
+    // storing alt
+    if(img[0].attribs.alt)
+      info.alt = img[0].attribs.alt;
+    // storing src
+    if(img[0].attribs.src)
+      info.src = "https:" + img[0].attribs.src;
+  }
+  // get first tr where is stored info about name of the band
+  let span = tbody.first().find('th span[class=fn]').first();
+  // extracting name of the discography
+  if(span[0] && span[0].children && span[0].children.length > 0 && span[0].children[0] &&
+      span[0].children[0].data){
+    info.name = span[0].children[0].data;
+  }
+  // extracting all rows, where are th and td
+  let allTR = tbody.find('tr').has('th').has('td');
+  // here are stored all types of albums of the band and 
+  // count of this albums
+  let types = [];
+  allTR.get().forEach(tr => {
+    let type = {}
+    let row = getChildren(tr); 
+    if(row.length < 2) return;
+    // getting header and data
+    let th = row[0];
+    let td = row[1];
+    
+    let field = "";
+    let value = "";
+    // getting field and value
+    if(th && th.firstChild && th.firstChild.data)
+      field = th.firstChild.data;
+    if(td && td.firstChild && td.firstChild.data)
+      value = td.firstChild.data;
+    
+    if(field !== ""){
+      type[field] = value;
+      types.push(type);
+    }
+  });
+  info.types = types;
+  return info;
+} 
 /**
  * getting children of the element, needed beacause 
  * wikipedia lua parser creates some blank elements 
@@ -201,12 +258,17 @@ const getChildren = element => element.children.filter(e => e.type != 'text');
   // await page.goto('https://en.wikipedia.org/wiki/Miles_Davis_discography');
   // await page.goto('https://en.wikipedia.org/wiki/Iron_Maiden_discography');
   // await page.goto('https://en.wikipedia.org/wiki/Justin_Bieber_discography');
-  let bodyHTML = await page.evaluate(() => document.body.innerHTML);
-  let content  = await startScraping(bodyHTML); 
-  let string   = JSON.stringify(content);
+  let bodyHTML     = await page.evaluate(() => document.body.innerHTML);
+  let albums       = await scrapeAlbums(bodyHTML); 
+  let info         = await scrapeInfo(bodyHTML); 
+  let albumsString = JSON.stringify(albums);
+  let infoString   = JSON.stringify(info);
 
-  await fs.writeFile('albums.json', string, 'utf8', () => {
-   console.info("Storing %d albums", content.length);
+  await fs.writeFile('albums.json', albumsString, 'utf8', () => {
+   console.info("Storing %d albums of %s", albums.length, info.name);
+  });  
+  await fs.writeFile('meta.json', infoString, 'utf8', () => {
+   console.info("Storing metadata");
   });  
   await browser.close();
 
